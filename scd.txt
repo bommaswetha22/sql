@@ -1,0 +1,229 @@
+SOURCE TABLE:
+ ELIMITER $$
+CREATE TRIGGER trigger1
+AFTER insert ON phone
+FOR EACH ROW
+BEGIN
+  INSERT INTO history(id,name,price,location ,pre_loc,start_date,end_date,indicator,surrogate_key)
+  VALUES (new.id,new.name,new.price,new.location,"-",now(),null,"Y",1);
+END $$
+DELIMITER ;
+-----------------------------------------------------------------------------
+DELIMITER $$
+CREATE TRIGGER TRIGGER2
+AFTER UPDATE ON phone
+FOR EACH ROW
+BEGIN
+IF OLD.location!=NEW.location THEN
+	UPDATE HISTORY SET location=new.location,pre_loc=old.location WHERE id=NEW.id;
+END IF;
+END $$
+DELIMITER ;
+-----------------------------------------------------------------------------------
+DELIMITER $$
+CREATE TRIGGER TRIGGER3
+AFTER UPDATE ON phone
+FOR EACH ROW
+BEGIN
+IF OLD.name!=NEW.name THEN
+	UPDATE HISTORY SET name=new.name WHERE id=NEW.id;
+END IF;
+END $$
+DELIMITER ;
+--------------------------------------------------------------------------------------
+DELIMITER $$
+CREATE TRIGGER trigger4
+AFTER update ON phone
+FOR EACH ROW
+BEGIN
+ if new.price != old.price then
+  UPDATE history
+  SET End_Date = start_date-1, indicator = 'N'
+  WHERE id = OLD.id AND  new.price != old.price AND indicator="Y"; 
+end if;
+END $$
+DELIMITER ;
+----------------------------------------------------------------------------------
+
+DELIMITER $$
+CREATE TRIGGER trigger5
+AFTER update ON phone
+FOR EACH ROW
+BEGIN
+  if new.price != old.price then
+    INSERT INTO history (id,Name,price,location,Start_Date,End_Date,indicator)
+    VALUES (new.id,new.name,new.price,new.location,now(),null,"Y"); 
+  end if;
+END $$
+DELIMITER ;
+---------------------------------------------------------------------------------
+
+
+DELIMITER $$
+CREATE TRIGGER reset_surrogate_key
+BEFORE INSERT ON history
+FOR EACH ROW
+BEGIN
+  DECLARE max_surrogate_key INT;
+  DECLARE max_id INT;
+  SELECT MAX(surrogate_key), MAX(id) INTO max_surrogate_key, max_id FROM history WHERE id = NEW.id;
+  IF max_id IS NULL THEN
+    SET max_id = 0;
+  END IF;
+  IF max_surrogate_key IS NULL THEN
+    SET max_surrogate_key = 0;
+  END IF;
+  IF max_id = NEW.id THEN
+    SET NEW.surrogate_key = max_surrogate_key + 1;
+  ELSE
+    SET NEW.surrogate_key = 1;
+  END IF;
+END$$
+DELIMITER ;
+------------------------------------------------------------------------------------------------
+DELIMITER $$
+CREATE TRIGGER reset
+BEFORE INSERT ON history
+FOR EACH ROW
+BEGIN
+  DECLARE pre varchar(20);
+  DECLARE max_id INT;
+  SELECT  pre_loc,MAX(id) INTO pre,max_id FROM history WHERE id = NEW.id;
+  IF max_id = NEW.id THEN
+  SET NEW.pre_loc = pre;
+  END IF;
+
+END$$
+DELIMITER ;
+
+
+
+
+
+[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]][[[[[[[[[[[[[[[[[[[[[[]]]]]]]]]]]]]
+
+
+
+type1:
+
+mysql> insert into phone values(1,'realme',32000,'hyd'),(2,'oppo',31000,'knr');
+Query OK, 2 rows affected (0.01 sec)
+Records: 2  Duplicates: 0  Warnings: 0
+
+mysql> select * from phone;
++----+--------+-------+----------+
+| id | name   | price | location |
++----+--------+-------+----------+
+|  1 | realme | 32000 | hyd      |
+|  2 | oppo   | 31000 | knr      |
++----+--------+-------+----------+
+2 rows in set (0.00 sec)
+
+mysql> select * from history;
++------+--------+-------+----------+---------+------------+----------+-----------+---------------+
+| id   | name   | price | location | pre_loc | start_date | end_date | indicator | surrogate_key |
++------+--------+-------+----------+---------+------------+----------+-----------+---------------+
+|    1 | realme | 32000 | hyd      | -       | 2023-02-22 | NULL     | Y         |             1 |
+|    2 | oppo   | 31000 | knr      | -       | 2023-02-22 | NULL     | Y         |             1 |
++------+--------+-------+----------+---------+------------+----------+-----------+---------------+
+2 rows in set (0.00 sec)
+
+mysql> update phone
+    -> set name = 'redmi' where id = 1;
+Query OK, 1 row affected (0.01 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+mysql> select * from history;
++------+-------+-------+----------+---------+------------+----------+-----------+---------------+
+| id   | name  | price | location | pre_loc | start_date | end_date | indicator | surrogate_key |
++------+-------+-------+----------+---------+------------+----------+-----------+---------------+
+|    1 | redmi | 32000 | hyd      | -       | 2023-02-22 | NULL     | Y         |             1 |
+|    2 | oppo  | 31000 | knr      | -       | 2023-02-22 | NULL     | Y         |             1 |
++------+-------+-------+----------+---------+------------+----------+-----------+---------------+
+2 rows in set (0.00 sec)
+
+mysql> select * from phone;
++----+-------+-------+----------+
+| id | name  | price | location |
++----+-------+-------+----------+
+|  1 | redmi | 32000 | hyd      |
+|  2 | oppo  | 31000 | knr      |
++----+-------+-------+----------+
+2 rows in set (0.00 sec)
+#######################################################################################
+type3:
+
+mysql> update phone
+    -> set price = 40000 where id=2;
+Query OK, 1 row affected (0.01 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+mysql> select * from phone;
++----+-------+-------+----------+
+| id | name  | price | location |
++----+-------+-------+----------+
+|  1 | redmi | 32000 | hyd      |
+|  2 | oppo  | 40000 | knr      |
++----+-------+-------+----------+
+2 rows in set (0.00 sec)
+
+mysql> select * from history;
++------+-------+-------+----------+---------+------------+------------+-----------+---------------+
+| id   | name  | price | location | pre_loc | start_date | end_date   | indicator | surrogate_key |
++------+-------+-------+----------+---------+------------+------------+-----------+---------------+
+|    1 | redmi | 32000 | hyd      | -       | 2023-02-22 | NULL       | Y         |             1 |
+|    2 | oppo  | 31000 | knr      | -       | 2023-02-22 | 2023-02-21 | N         |             1 |
+|    2 | oppo  | 40000 | knr      | -       | 2023-02-22 | NULL       | Y         |             2 |
++------+-------+-------+----------+---------+------------+------------+-----------+---------------+
+3 rows in set (0.00 sec)
+
+######################################################################################################
+type 3:
+mysql> update phone
+    -> set location = 'hyd' where id = 2;
+Query OK, 1 row affected (0.01 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+mysql> select * from history;
++------+-------+-------+----------+---------+------------+------------+-----------+---------------+
+| id   | name  | price | location | pre_loc | start_date | end_date   | indicator | surrogate_key |
++------+-------+-------+----------+---------+------------+------------+-----------+---------------+
+|    1 | redmi | 32000 | hyd      | -       | 2023-02-22 | NULL       | Y         |             1 |
+|    2 | oppo  | 31000 | hyd      | knr     | 2023-02-22 | 2023-02-21 | N         |             1 |
+|    2 | oppo  | 40000 | hyd      | knr     | 2023-02-22 | NULL       | Y         |             2 |
++------+-------+-------+----------+---------+------------+------------+-----------+---------------+
+3 rows in set (0.00 sec)
+
+mysql> select * from phone;
++----+-------+-------+----------+
+| id | name  | price | location |
++----+-------+-------+----------+
+|  1 | redmi | 32000 | hyd      |
+|  2 | oppo  | 40000 | hyd      |
++----+-------+-------+----------+
+2 rows in set (0.00 sec)
+
+mysql> update phone
+    -> set price=30000,location='Blr' where id = 1;
+Query OK, 1 row affected (0.01 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+
+mysql> select * from history;
++------+-------+-------+----------+---------+------------+------------+-----------+---------------+
+| id   | name  | price | location | pre_loc | start_date | end_date   | indicator | surrogate_key |
++------+-------+-------+----------+---------+------------+------------+-----------+---------------+
+|    1 | redmi | 32000 | Blr      | hyd     | 2023-02-22 | 2023-02-21 | N         |             1 |
+|    2 | oppo  | 31000 | hyd      | knr     | 2023-02-22 | 2023-02-21 | N         |             1 |
+|    2 | oppo  | 40000 | hyd      | knr     | 2023-02-22 | NULL       | Y         |             2 |
+|    1 | redmi | 30000 | Blr      | hyd     | 2023-02-22 | NULL       | Y         |             2 |
++------+-------+-------+----------+---------+------------+------------+-----------+---------------+
+4 rows in set (0.00 sec) 
+
+
+
+
+
+
+
+
+
